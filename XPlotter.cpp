@@ -200,7 +200,7 @@ unsigned long long LCM(unsigned long long a, unsigned long long b) //наименьшее 
 int main(int argc, char* argv[]) {
 
 //	unsigned long long addr = 0;
-	char addr[21];
+	char addr[21]; 
 	unsigned long long startnonce = 0;
 	unsigned long long nonces = 0;
 	unsigned long long threads = 1;
