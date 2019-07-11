@@ -4,7 +4,7 @@
 
 namespace AVX2
 {
-	void work_i(const size_t local_num, const unsigned long long loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces)
+	void work_i(const size_t local_num, std::string& loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces)
 	{
 		unsigned long long nonce;
 		unsigned long long nonce1;
@@ -198,7 +198,7 @@ namespace AVX2
 
 namespace AVX1
 {
-	void work_i(const size_t local_num, const unsigned long long loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces)
+	void work_i(const size_t local_num, std::string& loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces)
 	{
 		unsigned long long nonce;
 		unsigned long long nonce1;
@@ -344,7 +344,7 @@ namespace AVX1
 
 namespace SSE4
 {
-	void work_i(const size_t local_num, const unsigned long long loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces)
+	void work_i(const size_t local_num,std::string& loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces)
 	{
 		unsigned long long nonce;
 		unsigned long long nonce1;
@@ -353,15 +353,15 @@ namespace SSE4
 		unsigned long long nonce4;
 
 		char *final = new char[32];
-		char *gendata = new char[16 + PLOT_SIZE];
+		char *gendata = new char[28 + PLOT_SIZE];
 		char *final1 = new char[32];
 		char *final2 = new char[32];
 		char *final3 = new char[32];
 		char *final4 = new char[32];
-		char *gendata1 = new char[16 + PLOT_SIZE];
-		char *gendata2 = new char[16 + PLOT_SIZE];
-		char *gendata3 = new char[16 + PLOT_SIZE];
-		char *gendata4 = new char[16 + PLOT_SIZE];
+		char *gendata1 = new char[28 + PLOT_SIZE];
+		char *gendata2 = new char[28 + PLOT_SIZE];
+		char *gendata3 = new char[28 + PLOT_SIZE];
+		char *gendata4 = new char[28 + PLOT_SIZE];
 
 		size_t len;
 		shabal_context *x = new shabal_context[sizeof(shabal_context)];
@@ -371,11 +371,11 @@ namespace SSE4
 		{
 			if (n + 4 <= local_nonces)
 			{
-				char *xv = (char*)&loc_addr;
+				const char *xv = loc_addr.c_str();
 
-				for (size_t i = 0; i < 8; i++) gendata1[PLOT_SIZE + i] = xv[7 - i];
+				for (size_t i = 0; i < 20; i++) gendata1[PLOT_SIZE + i] = xv[19 - i];
 
-				for (size_t i = PLOT_SIZE; i <= PLOT_SIZE + 7; ++i)
+				for (size_t i = PLOT_SIZE; i <= PLOT_SIZE + 19; ++i)
 				{
 					gendata2[i] = gendata1[i];
 					gendata3[i] = gendata1[i];
@@ -390,25 +390,25 @@ namespace SSE4
 				char *xv2 = (char*)&nonce2;
 				char *xv3 = (char*)&nonce3;
 				char *xv4 = (char*)&nonce4;
-				for (size_t i = 8; i < 16; i++)
+				for (size_t i = 20; i < 28; i++)
 				{
-					gendata1[PLOT_SIZE + i] = xv1[15 - i];
-					gendata2[PLOT_SIZE + i] = xv2[15 - i];
-					gendata3[PLOT_SIZE + i] = xv3[15 - i];
-					gendata4[PLOT_SIZE + i] = xv4[15 - i];
+					gendata1[PLOT_SIZE + i] = xv1[27 - i];
+					gendata2[PLOT_SIZE + i] = xv2[27 - i];
+					gendata3[PLOT_SIZE + i] = xv3[27 - i];
+					gendata4[PLOT_SIZE + i] = xv4[27 - i];
 				}
 
 				for (size_t i = PLOT_SIZE; i > 0; i -= HASH_SIZE)
 				{
 					sse4_mshabal_init(mx, 256);
-					len = PLOT_SIZE + 16 - i;
+					len = PLOT_SIZE + 28 - i;
 					if (len > HASH_CAP)   len = HASH_CAP;
 					sse4_mshabal(mx, &gendata1[i], &gendata2[i], &gendata3[i], &gendata4[i], len);
 					sse4_mshabal_close(mx, 0, 0, 0, 0, 0, &gendata1[i - HASH_SIZE], &gendata2[i - HASH_SIZE], &gendata3[i - HASH_SIZE], &gendata4[i - HASH_SIZE]);
 				}
 
 				sse4_mshabal_init(mx, 256);
-				sse4_mshabal(mx, gendata1, gendata2, gendata3, gendata4, 16 + PLOT_SIZE);
+				sse4_mshabal(mx, gendata1, gendata2, gendata3, gendata4, 28 + PLOT_SIZE);
 				sse4_mshabal_close(mx, 0, 0, 0, 0, 0, final1, final2, final3, final4);
 
 				// XOR with final
@@ -433,22 +433,22 @@ namespace SSE4
 			}
 			else
 			{
-				char *xv = (char*)&loc_addr;
+				const char *xv = loc_addr.c_str();
 
-				gendata[PLOT_SIZE] = xv[7]; gendata[PLOT_SIZE + 1] = xv[6]; gendata[PLOT_SIZE + 2] = xv[5]; gendata[PLOT_SIZE + 3] = xv[4];
-				gendata[PLOT_SIZE + 4] = xv[3]; gendata[PLOT_SIZE + 5] = xv[2]; gendata[PLOT_SIZE + 6] = xv[1]; gendata[PLOT_SIZE + 7] = xv[0];
+				for (size_t i = 0; i < 20; i++) gendata[PLOT_SIZE + i] = xv[19 - i];
 
 				nonce = local_startnonce + n;
 				xv = (char*)&(nonce);
 
-				gendata[PLOT_SIZE + 8] = xv[7]; gendata[PLOT_SIZE + 9] = xv[6]; gendata[PLOT_SIZE + 10] = xv[5]; gendata[PLOT_SIZE + 11] = xv[4];
-				gendata[PLOT_SIZE + 12] = xv[3]; gendata[PLOT_SIZE + 13] = xv[2]; gendata[PLOT_SIZE + 14] = xv[1]; gendata[PLOT_SIZE + 15] = xv[0];
+				for (size_t i = 20; i < 28; i++) {
+					gendata[PLOT_SIZE + i] = xv[27 - i];
+				}
 
 				for (size_t i = PLOT_SIZE; i > 0; i -= HASH_SIZE)
 				{
 					shabal_init(x, 256);
 
-					len = PLOT_SIZE + 16 - i;
+					len = PLOT_SIZE + 28 - i;
 					if (len > HASH_CAP)   len = HASH_CAP;
 
 					shabal(x, &gendata[i], len);
@@ -456,7 +456,7 @@ namespace SSE4
 				}
 
 				shabal_init(x, 256);
-				shabal(x, gendata, 16 + PLOT_SIZE);
+				shabal(x, gendata, 28 + PLOT_SIZE);
 				shabal_close(x, 0, 0, final);
 
 

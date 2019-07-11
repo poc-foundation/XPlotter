@@ -1,7 +1,9 @@
 
 #include "Nonce.h"
 
-enum colour { DARKBLUE = 1, DARKGREEN, DARKTEAL, DARKRED, DARKPINK, DARKYELLOW, GRAY, DARKGRAY, BLUE, GREEN, TEAL, RED, PINK, YELLOW, WHITE };
+enum colour {
+	DARKBLUE = 1, DARKGREEN, DARKTEAL, DARKRED, DARKPINK, DARKYELLOW, GRAY, DARKGRAY, BLUE, GREEN, TEAL, RED, PINK, YELLOW, WHITE
+};
 std::array <char*, HASH_CAP * sizeof(char*)> cache;
 std::array <char*, HASH_CAP * sizeof(char*)> cache_write;
 
@@ -25,8 +27,7 @@ void printLastError(std::string message) {
 	SetConsoleTextAttribute(hConsole, colour::GRAY);
 }
 
-BOOL SetPrivilege(void)
-{
+BOOL SetPrivilege(void) {
 	LUID luid;
 	if (!LookupPrivilegeValue(
 		NULL,					// lookup privilege on local system
@@ -38,8 +39,7 @@ BOOL SetPrivilege(void)
 	}
 
 	HANDLE hToken;
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
-	{
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
 		printLastError("OpenProcessToken error:");
 		return FALSE;
 	}
@@ -48,36 +48,32 @@ BOOL SetPrivilege(void)
 	tp.PrivilegeCount = 1;
 	tp.Privileges[0].Luid = luid;
 	tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-	
+
 	// Enable the privilege or disable all privileges.
 
-	if (!AdjustTokenPrivileges(	hToken,	FALSE,	&tp, sizeof(TOKEN_PRIVILEGES),	(PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
-	{
+	if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL)) {
 		printLastError("AdjustTokenPrivileges error:");
 		return FALSE;
 	}
 
-	if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
-	{
+	if (GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
 		printColouredMessage("The token does not have the specified privilege.\nFor faster writing you should restart plotter with Administrative rights.\n", RED);
 		return FALSE;
 	}
 	return TRUE;
 }
 
-unsigned long long getFreeSpace(const char* path)
-{
+unsigned long long getFreeSpace(const char* path) {
 	ULARGE_INTEGER lpFreeBytesAvailable;
 	ULARGE_INTEGER lpTotalNumberOfBytes;
 	ULARGE_INTEGER lpTotalNumberOfFreeBytes;
 
 	GetDiskFreeSpaceExA(path, &lpFreeBytesAvailable, &lpTotalNumberOfBytes, &lpTotalNumberOfFreeBytes);
-	
+
 	return lpFreeBytesAvailable.QuadPart;
 }
 
-unsigned long long getTotalSystemMemory()
-{
+unsigned long long getTotalSystemMemory() {
 	MEMORYSTATUSEX status;
 	status.dwLength = sizeof(status);
 	GlobalMemoryStatusEx(&status);
@@ -86,13 +82,12 @@ unsigned long long getTotalSystemMemory()
 
 //#define __PRINT_WRITER_PERF__
 
-void writer_i(const unsigned long long offset, const unsigned long long nonces_to_write, const unsigned long long glob_nonces)
-{
+void writer_i(const unsigned long long offset, const unsigned long long nonces_to_write, const unsigned long long glob_nonces) {
 	LARGE_INTEGER liDistanceToMove;
 	DWORD dwBytesWritten;
 	LARGE_INTEGER li;
 	QueryPerformanceFrequency(&li);
-		
+
 #ifdef __PRINT_WRITER_PERF__
 	const auto pc_freq = double(li.QuadPart);
 	LARGE_INTEGER start_time, end_time;
@@ -101,49 +96,42 @@ void writer_i(const unsigned long long offset, const unsigned long long nonces_t
 
 	written_scoops = 0;
 
-	for (size_t scoop = 0; scoop < HASH_CAP; scoop++)
-	{
+	for (size_t scoop = 0; scoop < HASH_CAP; scoop++) {
 		liDistanceToMove.QuadPart = (scoop*glob_nonces + offset) * SCOOP_SIZE;
-		if (!SetFilePointerEx(ofile, liDistanceToMove, nullptr, FILE_BEGIN))
-		{
+		if (!SetFilePointerEx(ofile, liDistanceToMove, nullptr, FILE_BEGIN)) {
 			printLastError(" error SetFilePointerEx");
 			exit(-1);
 		}
-		if (!WriteFile(ofile, &cache_write[scoop][0], DWORD(SCOOP_SIZE * nonces_to_write), &dwBytesWritten, nullptr))
-		{
+		if (!WriteFile(ofile, &cache_write[scoop][0], DWORD(SCOOP_SIZE * nonces_to_write), &dwBytesWritten, nullptr)) {
 			printLastError(" Failed WriteFile");
 			exit(-1);
 		}
-		written_scoops = scoop+1;
+		written_scoops = scoop + 1;
 	}
 
 #ifdef __PRINT_WRITER_PERF__
-	QueryPerformanceCounter(static_cast<LARGE_INTEGER*>(&end_time));	
+	QueryPerformanceCounter(static_cast<LARGE_INTEGER*>(&end_time));
 	printf("\n%.3f\n", double(end_time.QuadPart - start_time.QuadPart) / pc_freq);
 #endif
 
-	write_to_stream(offset+nonces_to_write);
+	write_to_stream(offset + nonces_to_write);
 	return;
 }
 
-bool write_to_stream(const unsigned long long data)
-{
+bool write_to_stream(const unsigned long long data) {
 	LARGE_INTEGER liDistanceToMove;
 	DWORD dwBytesWritten;
 	liDistanceToMove.QuadPart = 0;
 	unsigned long long buf = data;
-	if (!SetFilePointerEx(ofile_stream, liDistanceToMove, nullptr, FILE_BEGIN))
-	{
+	if (!SetFilePointerEx(ofile_stream, liDistanceToMove, nullptr, FILE_BEGIN)) {
 		printLastError(" error stream SetFilePointerEx");
 		return false;
 	}
-	if (!WriteFile(ofile_stream, &buf, DWORD(sizeof(buf)), &dwBytesWritten, nullptr))
-	{
+	if (!WriteFile(ofile_stream, &buf, DWORD(sizeof(buf)), &dwBytesWritten, nullptr)) {
 		printLastError(" Failed stream WriteFile");
 		return false;
 	}
-	if (SetEndOfFile(ofile_stream) == 0)
-	{
+	if (SetEndOfFile(ofile_stream) == 0) {
 		printLastError(" Failed stream SetEndOfFile");
 		CloseHandle(ofile_stream);
 		return false;
@@ -153,19 +141,16 @@ bool write_to_stream(const unsigned long long data)
 	return true;
 }
 
-unsigned long long read_from_stream()
-{
+unsigned long long read_from_stream() {
 	LARGE_INTEGER liDistanceToMove;
 	DWORD dwBytesRead;
 	liDistanceToMove.QuadPart = 0;
-	if (!SetFilePointerEx(ofile_stream, liDistanceToMove, nullptr, FILE_BEGIN))
-	{
+	if (!SetFilePointerEx(ofile_stream, liDistanceToMove, nullptr, FILE_BEGIN)) {
 		printLastError(" error stream SetFilePointerEx");
 		return 0;
 	}
 	unsigned long long buf = 0;
-	if (!ReadFile(ofile_stream, &buf, DWORD(sizeof(buf)), &dwBytesRead, nullptr))
-	{
+	if (!ReadFile(ofile_stream, &buf, DWORD(sizeof(buf)), &dwBytesRead, nullptr)) {
 		printLastError(" Failed stream ReadFile");
 		return 0;
 	}
@@ -175,29 +160,24 @@ unsigned long long read_from_stream()
 
 
 
-bool is_number(const std::string& s)
-{
+bool is_number(const std::string& s) {
 	return(strspn(s.c_str(), "0123456789") == s.size());
 }
 
-int drive_info(const std::string &path)
-{
-	std::string drive = path.substr(0, path.find_first_of("/\\")+1);
+int drive_info(const std::string &path) {
+	std::string drive = path.substr(0, path.find_first_of("/\\") + 1);
 	char NameBuffer[MAX_PATH];
 	char SysNameBuffer[MAX_PATH];
 	DWORD VSNumber;
 	DWORD MCLength;
 	DWORD FileSF;
-	if (GetVolumeInformationA(drive.c_str(), NameBuffer, sizeof(NameBuffer), &VSNumber, &MCLength, &FileSF, SysNameBuffer, sizeof(SysNameBuffer)))
-	{
+	if (GetVolumeInformationA(drive.c_str(), NameBuffer, sizeof(NameBuffer), &VSNumber, &MCLength, &FileSF, SysNameBuffer, sizeof(SysNameBuffer))) {
 		printf("Drive %s info:\n\tName: %s\n\tFile system: %s\n\tSerial Number: %lu\n", drive.c_str(), NameBuffer, SysNameBuffer, VSNumber);
-		if (FileSF & FILE_SUPPORTS_SPARSE_FILES)
-		{
+		if (FileSF & FILE_SUPPORTS_SPARSE_FILES) {
 			printf("\tFILE_SUPPORTS_SPARSE_FILES: yes\n"); // File system supports sparse streams
 			return  1;
 		}
-		else
-		{
+		else {
 			printf("\tFILE_SUPPORTS_SPARSE_FILES: no\n"); // Sparse streams are not supported
 			return 0;
 		}
@@ -206,27 +186,29 @@ int drive_info(const std::string &path)
 }
 
 /*
-unsigned long long GCD(unsigned long long a, unsigned long long b)  //наибольший общий делитель
-{    
+unsigned long long GCD(unsigned long long a, unsigned long long b)  //наибольший общи?делитель
+{
 	return b ? GCD(b, a%b) : a;
 }
 
-unsigned long long LCM(unsigned long long a, unsigned long long b) //наименьшее общее кратное
+unsigned long long LCM(unsigned long long a, unsigned long long b) //наименьшее обще?кратно?
 {
 	return a / GCD(a, b) * b;
 }
 */
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
 
-	unsigned long long addr = 0;
+//	unsigned long long addr = 0;
+	char addr[21];
 	unsigned long long startnonce = 0;
 	unsigned long long nonces = 0;
 	unsigned long long threads = 1;
 	unsigned long long nonces_per_thread = 0;
 	unsigned long long memory = 0;
 	std::string out_path = "";
+
+	memset(addr, 0, sizeof(addr));
 
 	std::thread writer;
 	std::vector<std::thread> workers;
@@ -238,8 +220,7 @@ int main(int argc, char* argv[])
 		exit(-1);
 	}
 
-	if (argc < 2)
-	{
+	if (argc < 2) {
 		printf("Usage: %s -id <ID> -sn <start_nonce> [-n <nonces>] -t <threads> [-path <d:\\plots>] [-mem <8G>]\n", argv[0]);
 		printf("         <ID> = your numeric acount id\n");
 		printf("         <start_nonce> = where you want to start plotting.\n");
@@ -262,10 +243,17 @@ int main(int argc, char* argv[])
 	for (auto & it : args)								//make all parameters to lower case
 		for (auto & c : it) c = tolower(c);
 
-	for (size_t i = 1; i < args.size() - 1; i++)
-	{
+	for (size_t i = 1; i < args.size() - 1; i++) {
+		/*
 		if ((args[i] == "-id") && is_number(args[++i]))
 			addr = strtoull(args[i].c_str(), 0, 10);
+		*/
+		if ((args[i] == "-id")) {
+			i++;
+			for (int k=0;k<args[i].length();k++) {
+				addr[k] = args[i][k];
+			}
+		}
 		if ((args[i] == "-sn") && is_number(args[++i]))
 			startnonce = strtoull(args[i].c_str(), 0, 10);
 		if ((args[i] == "-n") && is_number(args[++i]))
@@ -274,25 +262,22 @@ int main(int argc, char* argv[])
 			threads = strtoull(args[i].c_str(), 0, 10);
 		if (args[i] == "-path")
 			out_path = args[++i];
-		if (args[i] == "-mem")
-		{
-				i++;
-				memory = strtoull(args[i].substr(0, args[i].find_last_of("0123456789") + 1).c_str(), 0, 10);
-				switch (args[i][args[i].length() - 1]) 
-				{
+		if (args[i] == "-mem") {
+			i++;
+			memory = strtoull(args[i].substr(0, args[i].find_last_of("0123456789") + 1).c_str(), 0, 10);
+			switch (args[i][args[i].length() - 1]) {
 				case 't':
 				case 'T':
 					memory *= 1024;
 				case 'g':
 				case 'G':
 					memory *= 1024;
-				}
+			}
 		}
 	}
 
-	
-	if (out_path.empty() || (out_path.find(":") == std::string::npos))
-	{
+
+	if (out_path.empty() || (out_path.find(":") == std::string::npos)) {
 		char Buffer[MAX_PATH];
 		GetCurrentDirectoryA(MAX_PATH, Buffer);
 		std::string _path = Buffer;
@@ -303,20 +288,18 @@ int main(int argc, char* argv[])
 
 	printf("Checking directory...\n");
 	//printf("GetCurrentDirectory %s\n", out_path.c_str());
-	if (!CreateDirectoryA(out_path.c_str(), nullptr) && ERROR_ALREADY_EXISTS != GetLastError())
-	{
+	if (!CreateDirectoryA(out_path.c_str(), nullptr) && ERROR_ALREADY_EXISTS != GetLastError()) {
 		printLastError("Can't create directory " + out_path + " for plots");
 		exit(-1);
 	}
-	
+
 	drive_info(out_path);
 
 	DWORD sectorsPerCluster;
 	DWORD bytesPerSector;
 	DWORD numberOfFreeClusters;
 	DWORD totalNumberOfClusters;
-	if (!GetDiskFreeSpaceA(out_path.c_str(), &sectorsPerCluster, &bytesPerSector, &numberOfFreeClusters, &totalNumberOfClusters))
-	{
+	if (!GetDiskFreeSpaceA(out_path.c_str(), &sectorsPerCluster, &bytesPerSector, &numberOfFreeClusters, &totalNumberOfClusters)) {
 		printLastError("GetDiskFreeSpace failed");
 		exit(-1);
 	}
@@ -331,13 +314,13 @@ int main(int argc, char* argv[])
 	// ajusting nonces 
 	nonces = (nonces / (bytesPerSector / SCOOP_SIZE)) * (bytesPerSector / SCOOP_SIZE);
 
-	std::string filename = std::to_string(addr) + "_" + std::to_string(startnonce) + "_" + std::to_string(nonces) + "_" + std::to_string(nonces);
-	
+	std::string filename = addr;
+	filename = filename + "_" + std::to_string(startnonce) + "_" + std::to_string(nonces) + "_" + std::to_string(nonces);
+
 	BOOL granted = SetPrivilege();
 
 	ofile_stream = CreateFileA((out_path + filename + ":stream").c_str(), GENERIC_WRITE | GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-	if (ofile_stream == INVALID_HANDLE_VALUE)
-	{
+	if (ofile_stream == INVALID_HANDLE_VALUE) {
 		printColouredMessage("Error creating stream for file " + out_path + filename + "\n", RED);
 		exit(-1);
 	}
@@ -348,28 +331,25 @@ int main(int argc, char* argv[])
 		CloseHandle(ofile_stream);
 		exit(0);
 	}
-	if (nonces_done > 0)
-	{
+	if (nonces_done > 0) {
 		SetConsoleTextAttribute(hConsole, colour::YELLOW);
 		printf("Continuing with nonce %llu\n", nonces_done);
 	}
 
 	printColouredMessage("Creating file: " + out_path + filename + "\n", colour::DARKGRAY);
 	ofile = CreateFileA((out_path + filename).c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_ALWAYS, FILE_FLAG_NO_BUFFERING, nullptr); //FILE_ATTRIBUTE_NORMAL     FILE_FLAG_WRITE_THROUGH |
-	if (ofile == INVALID_HANDLE_VALUE)
-	{
+	if (ofile == INVALID_HANDLE_VALUE) {
 		printColouredMessage("Error creating file " + out_path + filename + "\n", RED);
 		CloseHandle(ofile_stream);
 		exit(-1);
 	}
 
-	
+
 	// reserve free space for plot
 	LARGE_INTEGER liDistanceToMove;
 	liDistanceToMove.QuadPart = nonces * PLOT_SIZE;
 	SetFilePointerEx(ofile, liDistanceToMove, nullptr, FILE_BEGIN);
-	if (SetEndOfFile(ofile) == 0)
-	{
+	if (SetEndOfFile(ofile) == 0) {
 		SetConsoleTextAttribute(hConsole, colour::RED);
 		printLastError("Not enough free space, reduce \"nonces\"...");
 		CloseHandle(ofile);
@@ -377,11 +357,9 @@ int main(int argc, char* argv[])
 		DeleteFileA((out_path + filename).c_str());
 		exit(-1);
 	}
-	
-	if (granted)
-	{
-		if (SetFileValidData(ofile, nonces * PLOT_SIZE) == 0)
-		{
+
+	if (granted) {
+		if (SetFileValidData(ofile, nonces * PLOT_SIZE) == 0) {
 			printLastError("SetFileValidData error");
 			CloseHandle(ofile);
 			CloseHandle(ofile_stream);
@@ -393,7 +371,7 @@ int main(int argc, char* argv[])
 
 	if (memory) nonces_per_thread = memory * 2 / threads;
 	else nonces_per_thread = 1024; //(bytesPerSector / SCOOP_SIZE) * 1024 / threads;
-	
+
 	if (nonces < nonces_per_thread * threads) 	nonces_per_thread = nonces / threads;
 
 	// check free RAM
@@ -403,7 +381,7 @@ int main(int argc, char* argv[])
 	nonces_per_thread = (nonces_per_thread / (bytesPerSector / SCOOP_SIZE)) * (bytesPerSector / SCOOP_SIZE);
 
 	SetConsoleTextAttribute(hConsole, colour::BLUE);
-	printf("ID:  %llu\n", addr);
+	printf("ID:  %s\n", addr);
 	printf("Start_nonce:  %llu\n", startnonce);
 	printf("Nonces: %llu\n", nonces);
 	printf("Nonces per thread:  %llu\n", nonces_per_thread);
@@ -416,12 +394,10 @@ int main(int argc, char* argv[])
 
 	cache.fill(nullptr);
 	cache_write.fill(nullptr);
-	for (size_t i = 0; i < HASH_CAP; i++)
-	{
+	for (size_t i = 0; i < HASH_CAP; i++) {
 		cache[i] = (char *)VirtualAlloc(nullptr, threads * nonces_per_thread * SCOOP_SIZE, MEM_COMMIT, PAGE_READWRITE);
 		cache_write[i] = (char *)VirtualAlloc(nullptr, threads * nonces_per_thread * SCOOP_SIZE, MEM_COMMIT, PAGE_READWRITE);
-		if ((cache[i] == nullptr) || (cache_write[i] == nullptr))
-		{
+		if ((cache[i] == nullptr) || (cache_write[i] == nullptr)) {
 			printColouredMessage(" Error allocating memory", RED);
 			CloseHandle(ofile);
 			CloseHandle(ofile_stream);
@@ -439,36 +415,31 @@ int main(int argc, char* argv[])
 	unsigned long long nonces_in_work = 0;
 	start_timer = GetTickCount64();
 
-	while (nonces_done < nonces)
-	{
+	while (nonces_done < nonces) {
 		t_timer = GetTickCount64();
 
 		leftover = nonces - nonces_done;
-		if (leftover / (nonces_per_thread*threads) == 0)
-		{
-			if (leftover >= threads*(bytesPerSector / SCOOP_SIZE))
-			{
+		if (leftover / (nonces_per_thread*threads) == 0) {
+			if (leftover >= threads*(bytesPerSector / SCOOP_SIZE)) {
 				nonces_per_thread = leftover / threads;
 				//ajusting
 				nonces_per_thread = (nonces_per_thread / (bytesPerSector / SCOOP_SIZE)) * (bytesPerSector / SCOOP_SIZE);
 			}
-			else
-			{
+			else {
 				threads = 1;
 				nonces_per_thread = leftover;
 			}
 		}
 
 
-		for (size_t i = 0; i < threads; i++)
-		{
-		#ifdef __AVX__
+		for (size_t i = 0; i < threads; i++) {
+#ifdef __AVX__
 			std::thread th(std::thread(AVX1::work_i, i, addr, startnonce + nonces_done + i*nonces_per_thread, nonces_per_thread));
-		#elif __AVX2__
+#elif __AVX2__
 			std::thread th(std::thread(AVX2::work_i, i, addr, startnonce + nonces_done + i * nonces_per_thread, nonces_per_thread));
-		#else
-			std::thread th(std::thread(SSE4::work_i, i, addr, startnonce + nonces_done + i*nonces_per_thread, nonces_per_thread));
-		#endif
+#else
+			std::thread th(std::thread(SSE4::work_i, i, std::string(addr), startnonce + nonces_done + i*nonces_per_thread, nonces_per_thread));
+#endif
 			workers.push_back(move(th));
 			worker_status.push_back(0);
 		}
@@ -477,8 +448,7 @@ int main(int argc, char* argv[])
 		printf("\r[%llu%%] Generating nonces from %llu to %llu\t\t\t\t\t\t\n", (nonces_done * 100) / nonces, startnonce + nonces_done, startnonce + nonces_done + nonces_in_work);
 		SetConsoleTextAttribute(hConsole, colour::YELLOW);
 
-		do
-		{
+		do {
 			Sleep(100);
 			x = 0;
 			for (auto it = worker_status.begin(); it != worker_status.end(); ++it) x += *it;
@@ -490,8 +460,7 @@ int main(int argc, char* argv[])
 		for (auto it = workers.begin(); it != workers.end(); ++it)	if (it->joinable()) it->join();
 		for (auto it = worker_status.begin(); it != worker_status.end(); ++it) *it = 0;
 
-		while ((written_scoops != 0) && (written_scoops < HASH_CAP))
-		{
+		while ((written_scoops != 0) && (written_scoops < HASH_CAP)) {
 			Sleep(100);
 			printf("\rCPU: %llu nonces done                   ", nonces_done + x);
 			printf("\t\tHDD: Writing scoops: %.2f%%", (double)(written_scoops * 100) / (double)HASH_CAP);
@@ -508,8 +477,7 @@ int main(int argc, char* argv[])
 	}
 
 
-	while ((written_scoops != 0) && (written_scoops < HASH_CAP))
-	{
+	while ((written_scoops != 0) && (written_scoops < HASH_CAP)) {
 		Sleep(100);
 		printf("\rCPU: %llu nonces done                   ", nonces_done + x);
 		printf("\t\tHDD: Writing scoops: %.2f%%", (double)(written_scoops * 100) / (double)HASH_CAP);
@@ -525,8 +493,7 @@ int main(int argc, char* argv[])
 	// freeing memory
 	SetConsoleTextAttribute(hConsole, colour::DARKGRAY);
 	printf("Releasing memory... ");
-	for (size_t i = 0; i < HASH_CAP; i++)
-	{
+	for (size_t i = 0; i < HASH_CAP; i++) {
 		VirtualFree(cache[i], 0, MEM_RELEASE);
 		VirtualFree(cache_write[i], 0, MEM_RELEASE);
 	}

@@ -21,13 +21,13 @@ bool write_to_stream(const unsigned long long data);
 
 namespace AVX2
 {
-	void work_i(const size_t local_num, const unsigned long long loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces);
+	void work_i(const size_t local_num, std::string& loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces);
 }
 namespace AVX1
 {
-	void work_i(const size_t local_num, const unsigned long long loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces);
+	void work_i(const size_t local_num, std::string& loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces);
 }
 namespace SSE4
 {
-	void work_i(const size_t local_num, const unsigned long long loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces);
+	void work_i(const size_t local_num,std::string& loc_addr, const unsigned long long local_startnonce, const unsigned long long local_nonces);
 }
